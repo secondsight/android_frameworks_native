@@ -44,6 +44,8 @@
 
 #include "DisplayHardware/HWComposer.h"
 
+#include "Houyi/HMatrix.h"
+
 #ifdef QCOM_BSP
 #include <gralloc_priv.h>
 #endif
@@ -95,6 +97,22 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mName = name;
 
+    if (name == "com.dwtech.android.wallpaper3d.Wallpaper3dService"
+            //|| name.find("com.aetherar.launcher") != -1
+    ) {
+        mMirrable = false;
+        mDistortable = false;
+    } else {
+        mMirrable = true;
+        if (name == "StatusBar") {
+            mDistortable = false;
+        } else {
+            mDistortable = true;
+        }
+    }
+
+    ALOGI("layer name: %s, mMirrable = %d, mDistortable = %d", mName.string(), mMirrable, mDistortable);
+
     mCurrentState.active.w = w;
     mCurrentState.active.h = h;
     mCurrentState.active.crop.makeInvalid();
@@ -131,6 +149,14 @@ void Layer::onFirstRef()
 
     const sp<const DisplayDevice> hw(mFlinger->getDefaultDisplayDevice());
     updateTransformHint(hw);
+}
+
+bool Layer::isMirrorable(const sp<const DisplayDevice>& hw) const
+{
+    int orientation = hw->getOrientation();
+    return orientation != DisplayState::eOrientationDefault
+            && orientation != DisplayState::eOrientation180
+            && mMirrable;
 }
 
 Layer::~Layer() {
@@ -506,6 +532,9 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 
     bool blackOutLayer = isProtected() || (isSecure() && !hw->isSecure());
 
+    int program = mFlinger->mProgram;
+    int locTexMat = glGetUniformLocation(program, "matTex");
+
     if (!blackOutLayer) {
         // TODO: we could be more subtle with isFixedSize()
         const bool useFiltering = getFiltering() || needsFiltering(hw) || isFixedSize();
@@ -521,45 +550,50 @@ void Layer::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
         if (useFiltering) {
             filter = GL_LINEAR;
         }
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
-        glMatrixMode(GL_TEXTURE);
-        glLoadMatrixf(textureMatrix);
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_2D);
-        glEnable(GL_TEXTURE_EXTERNAL_OES);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, filter);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, filter);
+
+        glUniformMatrix4fv(locTexMat, 1, false, textureMatrix);
+
+//        glMatrixMode(GL_TEXTURE);
+//        glLoadMatrixf(textureMatrix);
+//        glMatrixMode(GL_MODELVIEW);
+//        glDisable(GL_TEXTURE_2D);
+//        glEnable(GL_TEXTURE_EXTERNAL_OES);
     } else {
         glBindTexture(GL_TEXTURE_2D, mFlinger->getProtectedTexName());
-        glMatrixMode(GL_TEXTURE);
-        glLoadIdentity();
-        glMatrixMode(GL_MODELVIEW);
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
-        glEnable(GL_TEXTURE_2D);
+
+        HMatrix identity;
+        glUniformMatrix4fv(locTexMat, 1, false, identity.getData());
+//        glMatrixMode(GL_TEXTURE);
+//        glLoadIdentity();
+//        glMatrixMode(GL_MODELVIEW);
+//        glDisable(GL_TEXTURE_EXTERNAL_OES);
+//        glEnable(GL_TEXTURE_2D);
     }
 
     drawWithOpenGL(hw, clip);
 
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+//    glDisable(GL_TEXTURE_EXTERNAL_OES);
+//    glDisable(GL_TEXTURE_2D);
 }
 
 
 void Layer::clearWithOpenGL(const sp<const DisplayDevice>& hw, const Region& clip,
         GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha) const
 {
-    const uint32_t fbHeight = hw->getHeight();
-    glColor4f(red,green,blue,alpha);
-
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
-    glDisable(GL_BLEND);
-    glDisable(GL_DITHER);
-
-    LayerMesh mesh;
-    computeGeometry(hw, &mesh);
-
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+//    const uint32_t fbHeight = hw->getHeight();
+//    glColor4f(red,green,blue,alpha);
+//
+//    glDisable(GL_TEXTURE_EXTERNAL_OES);
+//    glDisable(GL_TEXTURE_2D);
+//    glDisable(GL_BLEND);
+//
+//    LayerMesh mesh;
+//    computeGeometry(hw, &mesh);
+//
+//    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+//    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 }
 
 void Layer::clearWithOpenGL(
@@ -569,23 +603,26 @@ void Layer::clearWithOpenGL(
 
 void Layer::drawWithOpenGL(
         const sp<const DisplayDevice>& hw, const Region& clip) const {
+    const uint32_t fbWidth = hw->getWidth();
     const uint32_t fbHeight = hw->getHeight();
     const State& s(drawingState());
+
+//    ALOGD("drawWithOpenGL width = %d, height = %d", fbWidth, fbHeight);
 
     GLenum src = mPremultipliedAlpha ? GL_ONE : GL_SRC_ALPHA;
     if (CC_UNLIKELY(s.alpha < 0xFF)) {
         const GLfloat alpha = s.alpha * (1.0f/255.0f);
         if (mPremultipliedAlpha) {
-            glColor4f(alpha, alpha, alpha, alpha);
+//            glColor4f(alpha, alpha, alpha, alpha);
         } else {
-            glColor4f(1, 1, 1, alpha);
+//            glColor4f(1, 1, 1, alpha);
         }
         glEnable(GL_BLEND);
         glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+//        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
     } else {
-        glColor4f(1, 1, 1, 1);
-        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+//        glColor4f(1, 1, 1, 1);
+//        glTexEnvx(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
         if (!isOpaque()) {
             glEnable(GL_BLEND);
             glBlendFunc(src, GL_ONE_MINUS_SRC_ALPHA);
@@ -595,7 +632,7 @@ void Layer::drawWithOpenGL(
     }
 
     LayerMesh mesh;
-    computeGeometry(hw, &mesh);
+    computeGeometry(hw, &mesh, isMirrorable(hw));
 
     // TODO: we probably want to generate the texture coords with the mesh
     // here we assume that we only have 4 vertices
@@ -640,18 +677,67 @@ void Layer::drawWithOpenGL(
         texCoords[i].v = 1.0f - texCoords[i].v;
     }
 
-    if (needsDithering()) {
-        glEnable(GL_DITHER);
+    int program = mFlinger->mProgram;
+    GLuint vPositionHandle = glGetAttribLocation(program, "aPosition");
+    glVertexAttribPointer(vPositionHandle, 2, GL_FLOAT, GL_FALSE, 0, mesh.getVertices());
+    glEnableVertexAttribArray(vPositionHandle);
+
+    GLuint vTexcoordHandle = glGetAttribLocation(program, "aTexcoord");
+    glVertexAttribPointer(vTexcoordHandle, 2, GL_FLOAT, GL_FALSE, 0, texCoords);
+    glEnableVertexAttribArray(vTexcoordHandle);
+
+//    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+//    glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
+//    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+
+    GLsizei w = fbWidth;
+    GLsizei h = fbHeight;
+
+    int locPrjMat = glGetUniformLocation(program, "matProjection");
+    int locEyeMat = glGetUniformLocation(program, "matEye");
+    int locWorldMat = glGetUniformLocation(program, "matWorld");
+    HMatrix identity;
+    HMatrix world;
+    HMatrix ortho;
+    int locOR = glGetUniformLocation(program, "uUseOR");
+    if (!isMirrorable(hw)) {
+        glUniform1i(locOR, 0);
+
+        ortho.ortho(0, w, h, 0, 0, 1);
+        glUniformMatrix4fv(locPrjMat, 1, false, ortho.getData());
+
+        glUniformMatrix4fv(locEyeMat, 1, false, identity.getData());
+        glUniformMatrix4fv(locWorldMat, 1, false, identity.getData());
+
+        glViewport(0, 0, w, h);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
     } else {
-        glDisable(GL_DITHER);
+        // perspective projection
+        glUniformMatrix4fv(locPrjMat, 1, false, mFlinger->mCamera.getProjectionMatrix());
+
+        // occupy entire screen by moving plane to z=-1
+        world.translate(0, 0, -1);
+
+        // for any layer that is mirrored, it should scale to avoid stretching
+        world.scale(0.5f, 1, 1);
+
+        glUniformMatrix4fv(locWorldMat, 1, false, world.getData());
+
+        // check is we should apply distortion
+        glUniform1i(locOR, mDistortable ? 1 : 0);
+
+        // anything mirrored is moving
+        glUniformMatrix4fv(locEyeMat, 1, false, mFlinger->mCamera.getViewMatrix());
+
+        // left
+        glViewport(0, 0, w, h/2);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+
+        // right
+        glViewport(0, h/2, w, h/2);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
     }
 
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    glTexCoordPointer(2, GL_FLOAT, 0, texCoords);
-    glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-    glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
-
-    glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glDisable(GL_BLEND);
 }
 
@@ -685,10 +771,11 @@ bool Layer::getOpacityForFormat(uint32_t format)
 // local state
 // ----------------------------------------------------------------------------
 
-void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const
+void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh, bool perspective) const
 {
     const Layer::State& s(drawingState());
     const Transform tr(hw->getTransform() * s.transform);
+    const uint32_t hw_w = hw->getWidth();
     const uint32_t hw_h = hw->getHeight();
     Rect win(s.active.w, s.active.h);
     if (!s.active.crop.isEmpty()) {
@@ -701,6 +788,12 @@ void Layer::computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) 
         tr.transform(mesh->mVertices[3], win.right, win.top);
         for (size_t i=0 ; i<4 ; i++) {
             mesh->mVertices[i][1] = hw_h - mesh->mVertices[i][1];
+
+            if (perspective) {
+                mesh->mVertices[i][0] = 2 * (mesh->mVertices[i][0] / hw_w - 0.5f);
+                mesh->mVertices[i][1] = 2 * (mesh->mVertices[i][1] / hw_h - 0.5f);
+//                ALOGI("v[%d] : x = %f, y = %f", i, mesh->mVertices[i][0], mesh->mVertices[i][1]);
+            }
         }
     }
 }
@@ -1164,8 +1257,8 @@ Region Layer::latchBuffer(bool& recomputeVisibleRegions)
             recomputeVisibleRegions = true;
         }
 
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameterx(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         // FIXME: postedRegion should be dirty & bounds
         const Layer::State& front(drawingState());

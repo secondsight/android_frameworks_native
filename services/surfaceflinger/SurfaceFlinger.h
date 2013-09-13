@@ -22,6 +22,8 @@
 
 #include <EGL/egl.h>
 #include <GLES/gl.h>
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 
 #include <cutils/compiler.h>
 
@@ -50,6 +52,8 @@
 #include "MessageQueue.h"
 
 #include "DisplayHardware/HWComposer.h"
+
+#include "Houyi/HouyiCamera.h"
 
 #ifdef SAMSUNG_HDMI_SUPPORT
 #include "SecHdmiClient.h"
@@ -83,6 +87,13 @@ class SurfaceFlinger : public BinderService<SurfaceFlinger>,
                        private HWComposer::EventHandler
 {
 public:
+    static const bool mUseGLES1x = false;
+    mutable int mProgram;
+    mutable Houyi::Camera mCamera;
+    mutable float mInclination;
+    mutable float mAzimuth;
+    mutable int mFakeDir;
+
     static char const* getServiceName() {
         return "SurfaceFlinger";
     }
@@ -90,8 +101,7 @@ public:
     SurfaceFlinger();
 
     enum {
-        EVENT_VSYNC = HWC_EVENT_VSYNC,
-        EVENT_ORIENTATION = HWC_EVENT_ORIENTATION
+        EVENT_VSYNC = HWC_EVENT_VSYNC
     };
 
     // post an asynchronous message to the main thread
@@ -334,6 +344,7 @@ private:
     static EGLConfig selectEGLConfig(EGLDisplay disp, EGLint visualId);
     static EGLContext createGLContext(EGLDisplay disp, EGLConfig config);
     void initializeGL(EGLDisplay display);
+    void initializeShader();
     uint32_t getMaxTextureSize() const;
     uint32_t getMinColorDepth() const;
     uint32_t getMaxViewportDims() const;

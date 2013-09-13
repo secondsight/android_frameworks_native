@@ -151,7 +151,7 @@ public:
     uint32_t getTransactionFlags(uint32_t flags);
     uint32_t setTransactionFlags(uint32_t flags);
 
-    void computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh) const;
+    void computeGeometry(const sp<const DisplayDevice>& hw, LayerMesh* mesh, bool perspective = false) const;
     Rect computeBounds() const;
 
     sp<IBinder> getHandle();
@@ -322,7 +322,16 @@ protected:
     // constant
     sp<SurfaceFlinger> mFlinger;
 
+    // need to be mirrrored in landscape mode
+    // camera wallpaper is not mirrorable status bar is mirrorable but not distortable
+    mutable bool mMirrable;
+
+    // none mirrorable plus status bar
+    mutable bool mDistortable;
+
     virtual void onFirstRef();
+
+    virtual bool isMirrorable(const sp<const DisplayDevice>& hw) const;
 
     /*
      * Trivial class, used to ensure that mFlinger->onLayerDestroyed(mLayer)

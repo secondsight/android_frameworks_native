@@ -18,6 +18,12 @@ LOCAL_SRC_FILES:= \
     DisplayHardware/HWComposer.cpp \
     DisplayHardware/PowerHAL.cpp \
     DisplayHardware/VirtualDisplaySurface.cpp \
+    Houyi/HVector.cpp \
+    Houyi/HMatrix.cpp \
+    Houyi/HMath.cpp \
+    Houyi/HRay.cpp \
+    Houyi/HouyiCamera.cpp \
+    Houyi/HouyiGLUtils.cpp \
 
 LOCAL_CFLAGS:= -DLOG_TAG=\"SurfaceFlinger\"
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
@@ -56,6 +62,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libutils \
 	libEGL \
 	libGLESv1_CM \
+	libGLESv2 \
 	libbinder \
 	libui \
 	libgui

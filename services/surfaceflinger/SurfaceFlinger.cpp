@@ -69,6 +69,9 @@
 #include "DisplayHardware/HWComposer.h"
 #include "DisplayHardware/VirtualDisplaySurface.h"
 
+#include "Houyi/glshaders.h"
+#include "Houyi/HouyiGLUtils.h"
+
 #ifdef SAMSUNG_HDMI_SUPPORT
 #include "SecTVOutService.h"
 #endif
@@ -76,6 +79,8 @@
 #define DISPLAY_COUNT       1
 
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
+
+using namespace Houyi;
 
 namespace android {
 // ---------------------------------------------------------------------------
@@ -88,7 +93,11 @@ const String16 sDump("android.permission.DUMP");
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::SurfaceFlinger()
-    :   BnSurfaceComposer(), Thread(false),
+    :   BnSurfaceComposer(),
+        mInclination(0),
+        mAzimuth(0),
+        mFakeDir(0),
+        Thread(false),
         mTransactionFlags(0),
         mTransactionPending(false),
         mAnimTransactionPending(false),
@@ -100,7 +109,7 @@ SurfaceFlinger::SurfaceFlinger()
         mAnimCompositionPending(false),
         mDebugRegion(0),
         mDebugDDMS(0),
-        mDebugDisableHWC(0),
+        mDebugDisableHWC(1),
         mDebugDisableTransformHint(0),
         mDebugInSwapBuffers(0),
         mLastSwapBufferTime(0),
@@ -131,6 +140,11 @@ SurfaceFlinger::SurfaceFlinger()
 
     ALOGI_IF(mDebugRegion, "showupdates enabled");
     ALOGI_IF(mDebugDDMS, "DDMS debugging enabled");
+
+    // init camera for sensor
+    mCamera.setPosition(0, 0, 0);
+    mCamera.perspective(90, 1, 0.1f, 1000.f);
+
 
 #ifdef SAMSUNG_HDMI_SUPPORT
     ALOGD(">>> Run service");
@@ -413,6 +427,8 @@ success:
 }
 
 EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config) {
+    EGLint version = mUseGLES1x ? EGL_NONE : 0x3098;
+    EGLint contextVersion = mUseGLES1x ? EGL_NONE : 2;
     // Also create our EGLContext
     EGLint contextAttributes[] = {
 #ifdef EGL_IMG_context_priority
@@ -421,7 +437,7 @@ EGLContext SurfaceFlinger::createGLContext(EGLDisplay display, EGLConfig config)
             EGL_CONTEXT_PRIORITY_LEVEL_IMG, EGL_CONTEXT_PRIORITY_HIGH_IMG,
 #endif
 #endif
-            EGL_NONE, EGL_NONE
+            version, contextVersion, EGL_NONE
     };
     EGLContext ctxt = eglCreateContext(display, config, NULL, contextAttributes);
     ALOGE_IF(ctxt==EGL_NO_CONTEXT, "EGLContext creation failed");
@@ -458,10 +474,10 @@ void SurfaceFlinger::initializeGL(EGLDisplay display) {
     const uint16_t protTexData[] = { pack565(0x03, 0x03, 0x03) };
     glGenTextures(1, &mProtectedTexName);
     glBindTexture(GL_TEXTURE_2D, mProtectedTexName);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterx(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0,
             GL_RGB, GL_UNSIGNED_SHORT_5_6_5, protTexData);
 
@@ -486,6 +502,13 @@ void SurfaceFlinger::initializeGL(EGLDisplay display) {
     ALOGI("GL_MAX_VIEWPORT_DIMS = %d x %d", mMaxViewportDims[0], mMaxViewportDims[1]);
 
     mMinColorDepth = r;
+}
+
+void SurfaceFlinger::initializeShader()
+{
+    mProgram = GLUtils::loadShader(vshaders[0], pshaders[0]);
+    ALOGI("shader program created, handle = %d", mProgram);
+    glUseProgram(mProgram);
 }
 
 status_t SurfaceFlinger::readyToRun()
@@ -556,6 +579,8 @@ status_t SurfaceFlinger::readyToRun()
     //  initialize OpenGL ES
     DisplayDevice::makeCurrent(mEGLDisplay, hw, mEGLContext);
     initializeGL(mEGLDisplay);
+    if (!mUseGLES1x)
+        initializeShader();
 
     // start the EventThread
     mEventThread = new EventThread(this);
@@ -574,6 +599,7 @@ status_t SurfaceFlinger::readyToRun()
     // start boot animation
     startBootAnim();
 
+    ALOGI("BootAnim Started");
     return NO_ERROR;
 }
 
@@ -809,12 +835,19 @@ void SurfaceFlinger::handleMessageInvalidate() {
 
 void SurfaceFlinger::handleMessageRefresh() {
     ATRACE_CALL();
+//    ALOGW("enter");
     preComposition();
+//    ALOGW("preComposition");
     rebuildLayerStacks();
+//    ALOGW("rebuildLayerStacks");
     setUpHWComposer();
+//    ALOGW("setUpHWComposer");
     doDebugFlashRegions();
+//    ALOGW("doDebugFlashRegions");
     doComposition();
+//    ALOGW("doComposition");
     postComposition();
+//    ALOGW("exit");
 }
 
 void SurfaceFlinger::doDebugFlashRegions()
@@ -834,10 +867,10 @@ void SurfaceFlinger::doDebugFlashRegions()
                 doComposeSurfaces(hw, Region(hw->bounds()));
 
                 // and draw the dirty region
-                glDisable(GL_TEXTURE_EXTERNAL_OES);
-                glDisable(GL_TEXTURE_2D);
+//                glDisable(GL_TEXTURE_EXTERNAL_OES);
+//                glDisable(GL_TEXTURE_2D);
                 glDisable(GL_BLEND);
-                glColor4f(1, 0, 1, 1);
+//                glColor4f(1, 0, 1, 1);
                 const int32_t height = hw->getHeight();
                 Region::const_iterator it = dirtyRegion.begin();
                 Region::const_iterator const end = dirtyRegion.end();
@@ -849,8 +882,8 @@ void SurfaceFlinger::doDebugFlashRegions()
                             { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
                             { (GLfloat) r.right, (GLfloat) (height - r.top) }
                     };
-                    glVertexPointer(2, GL_FLOAT, 0, vertices);
-                    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+//                    glVertexPointer(2, GL_FLOAT, 0, vertices);
+//                    glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
                 }
                 hw->compositionComplete();
                 hw->swapBuffers(getHwComposer());
@@ -1037,7 +1070,7 @@ void SurfaceFlinger::setUpHWComposer() {
                                     // which will be used to block animation
                                     // on external
                                     hwc.eventControl(HWC_DISPLAY_PRIMARY,
-                                            SurfaceFlinger::EVENT_ORIENTATION,
+                                            HWComposer::EVENT_ORIENTATION,
                                             uint32_t(draw[i].orientation));
                             }
                         }
@@ -1053,6 +1086,31 @@ void SurfaceFlinger::setUpHWComposer() {
 
 void SurfaceFlinger::doComposition() {
     ATRACE_CALL();
+
+//    if (mFakeDir == 0) {
+//        mInclination += 0.01f;
+//        if (mInclination > 3.14 / 6) {
+//            mInclination = 3.14 / 6;
+//            mFakeDir = 1;
+//        }
+//    } else {
+//        mInclination -= 0.01f;
+//        if (mInclination < -3.14 / 6) {
+//            mInclination = -3.14 / 6;
+//            mFakeDir = 0;
+//        }
+//    }
+
+    // update camera
+    HVector lookat = HVector(0, 0, -1);
+    lookat.rotate(HVector::BasisY, mInclination);
+    lookat.rotate(HVector::BasisX, mAzimuth);
+
+    mCamera.setLookAt(lookat.x, lookat.y, lookat.z);
+    mCamera.setUp(0, 1, 0);
+    mCamera.update();
+
+//    ALOGI("enter doComposition");
     const bool repaintEverything = android_atomic_and(0, &mRepaintEverything);
     for (size_t dpy=0 ; dpy<mDisplays.size() ; dpy++) {
         const sp<DisplayDevice>& hw(mDisplays[dpy]);
@@ -1071,6 +1129,8 @@ void SurfaceFlinger::doComposition() {
         hw->compositionComplete();
     }
     postFramebuffer();
+
+//    ALOGI("exit doComposition");
 }
 
 void SurfaceFlinger::postFramebuffer()
@@ -1657,6 +1717,8 @@ void SurfaceFlinger::invalidateHwcGeometry()
 void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
         const Region& inDirtyRegion)
 {
+//    ALOGI("enter doDisplayComposition");
+
     Region dirtyRegion(inDirtyRegion);
 
     // compute the invalid region
@@ -1689,6 +1751,7 @@ void SurfaceFlinger::doDisplayComposition(const sp<const DisplayDevice>& hw,
 
     // swap buffers (presentation)
     hw->swapBuffers(getHwComposer());
+//    ALOGI("enter doDisplayComposition");
 }
 
 void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const Region& dirty)
@@ -1707,8 +1770,16 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
         }
 
         // set the frame buffer
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
+        if (mUseGLES1x) {
+            glMatrixMode(GL_MODELVIEW);
+            glLoadIdentity();
+        }
+
+        // always clear as we are in perspective mode now
+        // we might scale or rotate anything on the screen
+        // so it is impossible to track the dirty region
+        glClearColor(0, 0, 0, 0);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         // Never touch the framebuffer if we don't have any framebuffer layers
         const bool hasHwcComposition = hwc.hasHwcComposition(id);
@@ -1718,8 +1789,8 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
             // remove where there are opaque FB layers. however, on some
             // GPUs doing a "clean slate" glClear might be more efficient.
             // We'll revisit later if needed.
-            glClearColor(0, 0, 0, 0);
-            glClear(GL_COLOR_BUFFER_BIT);
+//            glClearColor(0, 0, 0, 0);
+//            glClear(GL_COLOR_BUFFER_BIT);
         } else {
             // we start with the whole screen area
             const Region bounds(hw->getBounds());
@@ -1819,10 +1890,12 @@ void SurfaceFlinger::doComposeSurfaces(const sp<const DisplayDevice>& hw, const 
 void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
         const Region& region) const
 {
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+    if (mUseGLES1x) {
+        glDisable(GL_TEXTURE_EXTERNAL_OES);
+        glDisable(GL_TEXTURE_2D);
+    }
     glDisable(GL_BLEND);
-    glColor4f(0,0,0,0);
+//    glColor4f(0,0,0,0);
 
     const int32_t height = hw->getHeight();
     Region::const_iterator it = region.begin();
@@ -1835,8 +1908,8 @@ void SurfaceFlinger::drawWormhole(const sp<const DisplayDevice>& hw,
                 { (GLfloat) r.right, (GLfloat) (height - r.bottom) },
                 { (GLfloat) r.right, (GLfloat) (height - r.top) }
         };
-        glVertexPointer(2, GL_FLOAT, 0, vertices);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+//        glVertexPointer(2, GL_FLOAT, 0, vertices);
+//        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
     }
 }
 
@@ -2623,6 +2696,13 @@ status_t SurfaceFlinger::onTransact(
     uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
 {
     switch (code) {
+        case 2000:
+        {
+            mAzimuth = data.readFloat();
+            mInclination = data.readFloat();
+        }
+        return NO_ERROR;
+
         case CREATE_CONNECTION:
         case CREATE_DISPLAY:
         case SET_TRANSACTION_STATE:
@@ -2953,8 +3033,10 @@ void SurfaceFlinger::renderScreenImplLocked(
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0,0,0,1);
     glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_TEXTURE_EXTERNAL_OES);
-    glDisable(GL_TEXTURE_2D);
+    if (mUseGLES1x) {
+        glDisable(GL_TEXTURE_EXTERNAL_OES);
+        glDisable(GL_TEXTURE_2D);
+    }
 
     const LayerVector& layers( mDrawingState.layersSortedByZ );
     const size_t count = layers.size();

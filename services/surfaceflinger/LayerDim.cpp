@@ -44,11 +44,13 @@ LayerDim::~LayerDim() {
 void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) const
 {
     const State& s(drawingState());
+//    ALOGD("LayerDim onDraw a = %d", s.alpha);
     if (s.alpha>0) {
         const GLfloat alpha = s.alpha/255.0f;
+        const uint32_t fbWidth = hw->getWidth();
         const uint32_t fbHeight = hw->getHeight();
-        glDisable(GL_TEXTURE_EXTERNAL_OES);
-        glDisable(GL_TEXTURE_2D);
+//        glDisable(GL_TEXTURE_EXTERNAL_OES);
+//        glDisable(GL_TEXTURE_2D);
 
         if (s.alpha == 0xFF) {
             glDisable(GL_BLEND);
@@ -57,16 +59,49 @@ void LayerDim::onDraw(const sp<const DisplayDevice>& hw, const Region& clip) con
             glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        glColor4f(0, 0, 0, alpha);
+//        glColor4f(0, 0, 0, alpha);
 
         LayerMesh mesh;
         computeGeometry(hw, &mesh);
 
-        glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
-        glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+//        glVertexPointer(2, GL_FLOAT, 0, mesh.getVertices());
+
+        GLsizei w = fbWidth;
+        GLsizei h = fbHeight;
+
+        int orientation = hw->getOrientation();
+        if (orientation == DisplayState::eOrientationDefault || orientation == DisplayState::eOrientation180) {
+//            glMatrixMode(GL_PROJECTION);
+//            glLoadIdentity();
+//            // put the origin in the left-bottom corner
+//            glOrthof(0, w, 0, h, 0, 1);
+//            glMatrixMode(GL_MODELVIEW);
+//            glLoadIdentity();
+
+            glViewport(0, 0, w, h);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+        } else {
+            // half display height
+//            glMatrixMode(GL_PROJECTION);
+//            glLoadIdentity();
+//            // put the origin in the left-bottom corner
+//            glOrthof(0, w, 0, h/2, 0, 1);
+//            glMatrixMode(GL_MODELVIEW);
+//            glLoadIdentity();
+//    //        glScalef(0.5f, 0.5f, 1);
+//            glTranslatef(0, -h/4, 0);
+
+            // left
+            glViewport(0, 0, w, h/2);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+
+            // right
+            glViewport(0, h/2, w, h/2);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
+        }
 
         glDisable(GL_BLEND);
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+//        glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     }
 }
 

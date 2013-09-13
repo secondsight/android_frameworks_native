@@ -76,6 +76,7 @@ void MessageQueue::Handler::handleMessage(const Message& message) {
         case REFRESH:
             android_atomic_and(~eventMaskRefresh, &mEventMask);
             mQueue.mFlinger->onMessageReceived(message.what);
+            mQueue.mEvents->requestNextVsync();
             break;
         case TRANSACTION:
             android_atomic_and(~eventMaskTransaction, &mEventMask);
