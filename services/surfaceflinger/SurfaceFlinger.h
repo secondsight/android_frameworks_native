@@ -80,6 +80,18 @@ enum {
     eTransactionMask          = 0x07
 };
 
+#define AR_CONFIG_VERSION  1
+typedef struct _ARCFG {
+	bool isSensorEnabled;
+	int version;
+	int shaderType;
+    int camFOV;	
+	float zscale;
+	float camRotation;
+	float camDistance;
+	float sensorResetAcceleration;
+} ARCFG;
+
 class SurfaceFlinger : public BinderService<SurfaceFlinger>,
                        public BnSurfaceComposer,
                        private IBinder::DeathRecipient,
@@ -409,6 +421,11 @@ private:
     GLuint getProtectedTexName() const {
         return mProtectedTexName;
     }
+	
+	void saveARSettings();
+	void loadARSettings();
+	void updateARSettings(const Parcel& data);
+	void readARSettings(Parcel& data);
 
     /* ------------------------------------------------------------------------
      * Display management
@@ -503,6 +520,8 @@ private:
 #if defined(SAMSUNG_HDMI_SUPPORT) && defined(SAMSUNG_EXYNOS5250)
     SecHdmiClient *                         mHdmiClient;
 #endif
+
+	ARCFG mARConfig;
 };
 
 // ---------------------------------------------------------------------------

@@ -78,6 +78,11 @@
 
 #define DISPLAY_COUNT       1
 
+#define TRANS_CODE_UPDATE_AR_SETTINGS   2100
+#define TRANS_CODE_READ_AR_SETTINGS     2101
+
+#define AR_CFG_FILE   "/data/ar.cfg"
+
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
 
 using namespace Houyi;
@@ -2702,6 +2707,20 @@ status_t SurfaceFlinger::onTransact(
             mInclination = data.readFloat();
         }
         return NO_ERROR;
+		
+		case TRANS_CODE_UPDATE_AR_SETTINGS:
+		{
+		    updateARSettings(data);
+		}
+		return NO_ERROR;
+		
+		case TRANS_CODE_READ_AR_SETTINGS:
+		{
+		    if (reply) {
+                readARSettings(reply);
+			}
+		}
+		return NO_ERROR;
 
         case CREATE_CONNECTION:
         case CREATE_DISPLAY:
@@ -3333,6 +3352,54 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
     return l->sequence - r->sequence;
 }
 
+void SurfaceFlinger::saveARSettings()
+{
+	int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT);
+	mARConfig.version = AR_CONFIG_VERSION;
+	write(fd, &mARConfig, sizeof(mARConfig));
+	close(fd);
+}
+
+void SurfaceFlinger::loadARSettings()
+{
+	int fd = open(AR_CFG_FILE, O_RDONLY);
+	if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION) 
+	{
+		//load default config;
+		mARConfig.isSensorEnabled = true;
+		mARConfig.shaderType = 0;
+		mARConfig.camFOV = 45;
+		mARConfig.zscale = 0.8f;
+		mARConfig.camRotation = 0.5f;
+		mARConfig.camDistance = 6f;
+		mARConfig.sensorResetAcceleration = 20f;
+	}
+	close(fd);
+}
+
+void SurfaceFlinger::updateARSettings(const Parcel& data)
+{
+	mARConfig.isSensorEnabled = data.readInt32() != 0;
+	mARConfig.shaderType = data.readInt32();
+	mARConfig.camFOV = data.readInt32();
+	mARConfig.zscale = data.readFloat();
+	mARConfig.camRotation = data.readFloat();
+	mARConfig.camDistance = data.readFloat();
+	mARConfig.sensorResetAcceleration = data.readFloat();
+	
+	saveARSettings();
+}
+
+void SurfaceFlinger::readARSettings(Parcel& data)
+{
+    data.writeInt32(mARConfig.isSensorEnabled ? 1 : 0);
+    data.writeInt32(mARConfig.shaderType);
+    data.writeInt32(mARConfig.camFOV);	
+    data.writeFloat(mARConfig.zscale);
+    data.writeFloat(mARConfig.camRotation);
+    data.writeFloat(mARConfig.camDistance);
+    data.writeFloat(mARConfig.sensorResetAcceleration);
+}
 // ---------------------------------------------------------------------------
 
 SurfaceFlinger::DisplayDeviceState::DisplayDeviceState()
