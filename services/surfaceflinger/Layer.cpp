@@ -111,6 +111,9 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         }
     }
 
+    // after discuss disable OR for now
+    mDistortable = false;
+
     ALOGI("layer name: %s, mMirrable = %d, mDistortable = %d", mName.string(), mMirrable, mDistortable);
 
     mCurrentState.active.w = w;
@@ -715,11 +718,15 @@ void Layer::drawWithOpenGL(
         // perspective projection
         glUniformMatrix4fv(locPrjMat, 1, false, mFlinger->mCamera.getProjectionMatrix());
 
-        // occupy entire screen by moving plane to z=-1
-        world.translate(0, 0, -1);
+        // occupy entire screen by moving plane to z=mDefZ
+        world.translate(0, 0, mFlinger->mDefZ);
 
         // for any layer that is mirrored, it should scale to avoid stretching
         world.scale(0.5f, 1, 1);
+
+        // This needs to be taken into consideration when calculating touch event
+        float globalScale = mFlinger->mGlobalScale;
+        world.scale(globalScale, globalScale, 1);
 
         glUniformMatrix4fv(locWorldMat, 1, false, world.getData());
 

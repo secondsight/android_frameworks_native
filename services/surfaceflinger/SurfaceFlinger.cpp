@@ -99,9 +99,12 @@ const String16 sDump("android.permission.DUMP");
 
 SurfaceFlinger::SurfaceFlinger()
     :   BnSurfaceComposer(),
+        mFOV(45),
+        mDefZ(-2.4142),
         mInclination(0),
         mAzimuth(0),
         mFakeDir(0),
+        mGlobalScale(0.8f),
         Thread(false),
         mTransactionFlags(0),
         mTransactionPending(false),
@@ -148,7 +151,7 @@ SurfaceFlinger::SurfaceFlinger()
 
     // init camera for sensor
     mCamera.setPosition(0, 0, 0);
-    mCamera.perspective(90, 1, 0.1f, 1000.f);
+    mCamera.perspective(mFOV, 1, 0.1f, 1000.f);
 
 
 #ifdef SAMSUNG_HDMI_SUPPORT
