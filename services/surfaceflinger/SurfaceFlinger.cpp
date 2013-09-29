@@ -2717,7 +2717,7 @@ status_t SurfaceFlinger::onTransact(
 		case TRANS_CODE_READ_AR_SETTINGS:
 		{
 		    if (reply) {
-                readARSettings(reply);
+                readARSettings(*reply);
 			}
 		}
 		return NO_ERROR;
@@ -3354,10 +3354,13 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 
 void SurfaceFlinger::saveARSettings()
 {
-	int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT);
-	mARConfig.version = AR_CONFIG_VERSION;
-	write(fd, &mARConfig, sizeof(mARConfig));
-	close(fd);
+	int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT,  O_CREAT);
+    if (fd > 0) 
+    {
+        mARConfig.version = AR_CONFIG_VERSION;
+        write(fd, &mARConfig, sizeof(mARConfig));
+        close(fd);
+    }
 }
 
 void SurfaceFlinger::loadARSettings()
@@ -3371,8 +3374,8 @@ void SurfaceFlinger::loadARSettings()
 		mARConfig.camFOV = 45;
 		mARConfig.zscale = 0.8f;
 		mARConfig.camRotation = 0.5f;
-		mARConfig.camDistance = 6f;
-		mARConfig.sensorResetAcceleration = 20f;
+		mARConfig.camDistance = 6.0f;
+		mARConfig.sensorResetAcceleration = 20.0f;
 	}
 	close(fd);
 }
