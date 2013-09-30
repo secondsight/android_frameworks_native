@@ -101,12 +101,10 @@ public:
     static const bool mUseGLES1x = false;
     mutable int mProgram;
     mutable Houyi::Camera mCamera;
-    mutable float mFOV;
     mutable float mDefZ;
     mutable float mInclination;
     mutable float mAzimuth;
     mutable int mFakeDir;
-    mutable float mGlobalScale;
 
     static char const* getServiceName() {
         return "SurfaceFlinger";

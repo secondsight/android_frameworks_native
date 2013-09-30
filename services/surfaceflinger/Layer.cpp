@@ -111,8 +111,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
         }
     }
 
-    // after discuss disable OR for now
-    mDistortable = false;
+    mDistortable &= mFlinger->mARConfig.shaderType != 0;
 
     ALOGI("layer name: %s, mMirrable = %d, mDistortable = %d", mName.string(), mMirrable, mDistortable);
 
@@ -700,7 +699,8 @@ void Layer::drawWithOpenGL(
     int locEyeMat = glGetUniformLocation(program, "matEye");
     int locWorldMat = glGetUniformLocation(program, "matWorld");
     HMatrix identity;
-    HMatrix world;
+    HMatrix worldLeft;
+    HMatrix worldRight;
     HMatrix ortho;
     int locOR = glGetUniformLocation(program, "uUseOR");
     if (!isMirrorable(hw)) {
@@ -718,17 +718,20 @@ void Layer::drawWithOpenGL(
         // perspective projection
         glUniformMatrix4fv(locPrjMat, 1, false, mFlinger->mCamera.getProjectionMatrix());
 
-        // occupy entire screen by moving plane to z=mDefZ
-        world.translate(0, 0, mFlinger->mDefZ);
+        // Camera rotation in degree
+        float camRot = mFlinger->mARConfig.camRotation * 3.1415926 / 180;
+        worldLeft.rotate(camRot, 1, 0, 0);
+        worldRight.rotate(-camRot, 1, 0, 0);
 
-        // for any layer that is mirrored, it should scale to avoid stretching
-        world.scale(0.5f, 1, 1);
+        // distance between two cameras, equivalent to translate plane on the opposite direction
+        float camDis = mFlinger->mARConfig.camDistance;
+        worldLeft.translate(0, camDis, mFlinger->mDefZ);
+        worldRight.translate(0, -camDis, mFlinger->mDefZ);
 
         // This needs to be taken into consideration when calculating touch event
-        float globalScale = mFlinger->mGlobalScale;
-        world.scale(globalScale, globalScale, 1);
-
-        glUniformMatrix4fv(locWorldMat, 1, false, world.getData());
+        float globalScale = mFlinger->mARConfig.zscale;
+        worldLeft.scale(globalScale * 0.5, globalScale, 1);
+        worldRight.scale(globalScale * 0.5, globalScale, 1);
 
         // check is we should apply distortion
         glUniform1i(locOR, mDistortable ? 1 : 0);
@@ -738,10 +741,12 @@ void Layer::drawWithOpenGL(
 
         // left
         glViewport(0, 0, w, h/2);
+        glUniformMatrix4fv(locWorldMat, 1, false, worldLeft.getData());
         glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
 
         // right
         glViewport(0, h/2, w, h/2);
+        glUniformMatrix4fv(locWorldMat, 1, false, worldRight.getData());
         glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
     }
 
