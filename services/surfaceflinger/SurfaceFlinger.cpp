@@ -71,6 +71,8 @@
 
 #include "Houyi/glshaders.h"
 #include "Houyi/HouyiGLUtils.h"
+#include "Houyi/HVector.h"
+#include "Houyi/HMatrix.h"
 
 #ifdef SAMSUNG_HDMI_SUPPORT
 #include "SecTVOutService.h"
@@ -1104,13 +1106,21 @@ void SurfaceFlinger::doComposition() {
 //        }
 //    }
 
+    HMatrix camMat;
+    camMat.rotate(mAzimuth, 1, 0, 0);
+    camMat.rotate(mInclination, 0, 1, 0);
+
     // update camera
-    HVector lookat = HVector(0, 0, -1);
-    lookat.rotate(HVector::BasisY, mInclination);
-    lookat.rotate(HVector::BasisX, mAzimuth);
+    HVector lookatSrc = HVector(0, 0, -1);
+    HVector lookat = camMat.multiply(lookatSrc);
+    HVector upSrc = HVector(0, 1, 0);
+    HVector up = camMat.multiply(upSrc);
+
+//    lookat.rotate(HVector::BasisY, -mInclination);
+//    lookat.rotate(HVector::BasisX, mAzimuth);
 
     mCamera.setLookAt(lookat.x, lookat.y, lookat.z);
-    mCamera.setUp(0, 1, 0);
+    mCamera.setUp(up.x, up.y, up.z);
     mCamera.update();
 
 //    ALOGI("enter doComposition");
@@ -2710,13 +2720,13 @@ status_t SurfaceFlinger::onTransact(
             }
         }
         return NO_ERROR;
-		
+
 		case TRANS_CODE_UPDATE_AR_SETTINGS:
 		{
 		    updateARSettings(data);
 		}
 		return NO_ERROR;
-		
+
 		case TRANS_CODE_READ_AR_SETTINGS:
 		{
 		    if (reply) {
@@ -3359,7 +3369,7 @@ void SurfaceFlinger::saveARSettings()
 {
     ALOGI("Save AR setting: ");
 	int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT,  O_CREAT);
-    if (fd > 0) 
+    if (fd > 0)
     {
         mARConfig.version = AR_CONFIG_VERSION;
         write(fd, &mARConfig, sizeof(mARConfig));
@@ -3374,7 +3384,7 @@ void SurfaceFlinger::loadARSettings()
 {
     ALOGI("Load AR setting: ");
 	int fd = open(AR_CFG_FILE, O_RDONLY);
-	if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION) 
+	if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION)
 	{
 		//load default config;
 		mARConfig.isSensorEnabled = true;
