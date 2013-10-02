@@ -2718,6 +2718,10 @@ status_t SurfaceFlinger::onTransact(
                 mAzimuth = 0;
                 mInclination = 0;
             }
+            reply->writeInt32(mARConfig.camFOV);
+            reply->writeFloat(mARConfig.zscale);
+            reply->writeFloat(mARConfig.camRotation);
+            reply->writeFloat(mARConfig.camDistance);
         }
         return NO_ERROR;
 
@@ -3402,7 +3406,6 @@ void SurfaceFlinger::loadARSettings()
 
 	// init camera for sensor
     mCamera.setPosition(0, 0, 0);
-    mCamera.perspective(mARConfig.camFOV, 1, 0.1f, 1000.f);
     mDefZ = -1 / tan(mARConfig.camFOV * 3.1415926 / 360);
 }
 
@@ -3423,7 +3426,6 @@ void SurfaceFlinger::updateARSettings(const Parcel& data)
 	saveARSettings();
 
 	mCamera.setPosition(0, 0, 0);
-    mCamera.perspective(mARConfig.camFOV, 1, 0.1f, 1000.f);
     mDefZ = -1 / tan(mARConfig.camFOV * 3.1415926 / 360);
 }
 
@@ -3432,7 +3434,7 @@ void SurfaceFlinger::readARSettings(Parcel& data)
     ALOGI("Read AR setting: ");
     data.writeInt32(mARConfig.isSensorEnabled ? 1 : 0);
     data.writeInt32(mARConfig.shaderType);
-    data.writeInt32(mARConfig.camFOV);	
+    data.writeInt32(mARConfig.camFOV);
     data.writeFloat(mARConfig.zscale);
     data.writeFloat(mARConfig.camRotation);
     data.writeFloat(mARConfig.camDistance);

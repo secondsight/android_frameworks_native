@@ -716,6 +716,7 @@ void Layer::drawWithOpenGL(
         glDrawArrays(GL_TRIANGLE_FAN, 0, mesh.getVertexCount());
     } else {
         // perspective projection
+        mFlinger->mCamera.perspective(mFlinger->mARConfig.camFOV, 1, 0.1f, 1000.f);
         glUniformMatrix4fv(locPrjMat, 1, false, mFlinger->mCamera.getProjectionMatrix());
 
         // Camera rotation in degree
