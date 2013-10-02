@@ -2721,20 +2721,6 @@ status_t SurfaceFlinger::onTransact(
         }
         return NO_ERROR;
 
-		case TRANS_CODE_UPDATE_AR_SETTINGS:
-		{
-		    updateARSettings(data);
-		}
-		return NO_ERROR;
-
-		case TRANS_CODE_READ_AR_SETTINGS:
-		{
-		    if (reply) {
-                readARSettings(*reply);
-			}
-		}
-		return NO_ERROR;
-
         case CREATE_CONNECTION:
         case CREATE_DISPLAY:
         case SET_TRANSACTION_STATE:
@@ -2788,7 +2774,20 @@ status_t SurfaceFlinger::onTransact(
             return PERMISSION_DENIED;
         }
         int n;
-        switch (code) {
+        switch (code) {        
+            case TRANS_CODE_UPDATE_AR_SETTINGS:
+            {
+                updateARSettings(data);
+            }
+            return NO_ERROR;            
+            case TRANS_CODE_READ_AR_SETTINGS:
+            {
+                if (reply) {
+                    readARSettings(*reply);
+                }
+            }
+            return NO_ERROR; 
+			
             case 1000: // SHOW_CPU, NOT SUPPORTED ANYMORE
             case 1001: // SHOW_FPS, NOT SUPPORTED ANYMORE
                 return NO_ERROR;
