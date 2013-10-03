@@ -3419,6 +3419,7 @@ void SurfaceFlinger::updateARSettings(const Parcel& data)
 	mARConfig.camRotation = data.readFloat();
 	mARConfig.camDistance = data.readFloat();
 	mARConfig.sensorResetAcceleration = data.readFloat();
+	mARConfig.isMirrorEnabled = data.readInt32() != 0;
 	ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
 	                mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
 	                mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);
@@ -3438,7 +3439,8 @@ void SurfaceFlinger::readARSettings(Parcel& data)
     data.writeFloat(mARConfig.zscale);
     data.writeFloat(mARConfig.camRotation);
     data.writeFloat(mARConfig.camDistance);
-    data.writeFloat(mARConfig.sensorResetAcceleration);
+    data.writeFloat(mARConfig.sensorResetAcceleration);	
+    data.writeInt32(mARConfig.isMirrorEnabled ? 1 : 0);
     ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
                         mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
                         mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);

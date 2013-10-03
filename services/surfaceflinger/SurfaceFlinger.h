@@ -79,8 +79,9 @@ enum {
     eTransactionMask          = 0x07
 };
 
-#define AR_CONFIG_VERSION  1
+#define AR_CONFIG_VERSION  2
 typedef struct _ARCFG {
+	bool isMirrorEnabled;
 	bool isSensorEnabled;
 	int version;
 	int shaderType;
