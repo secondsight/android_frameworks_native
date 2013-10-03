@@ -3390,6 +3390,7 @@ void SurfaceFlinger::loadARSettings()
 	if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION)
 	{
 		//load default config;
+		mARConfig.isMirrorEnabled = true;
 		mARConfig.isSensorEnabled = true;
 		mARConfig.shaderType = 0;
 		mARConfig.camFOV = 45;
