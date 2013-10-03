@@ -3417,7 +3417,7 @@ void SurfaceFlinger::updateARSettings(const Parcel& data)
 	mARConfig.camFOV = data.readInt32();
 	mARConfig.zscale = data.readFloat();
 	mARConfig.camRotation = data.readFloat();
-	mARConfig.camDistance = data.readFloat() / 100;
+	mARConfig.camDistance = data.readFloat();
 	mARConfig.sensorResetAcceleration = data.readFloat();
 	ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
 	                mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
