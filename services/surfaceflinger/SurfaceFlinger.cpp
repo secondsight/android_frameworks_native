@@ -83,6 +83,9 @@
 #define TRANS_CODE_UPDATE_AR_SETTINGS   2100
 #define TRANS_CODE_READ_AR_SETTINGS     2101
 
+#define TRANS_CODE_DISABLE_SBS     2200
+#define TRANS_CODE_ENABLE_SBS      2201
+
 #define AR_CFG_FILE   "/data/ar.cfg"
 
 EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name);
@@ -2709,6 +2712,12 @@ status_t SurfaceFlinger::onTransact(
     uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)
 {
     switch (code) {
+        case TRANS_CODE_DISABLE_SBS:
+            ALOGD("disable sbs.");
+            return NO_ERROR;
+        case TRANS_CODE_ENABLE_SBS:
+            ALOGD("enable sbs.");
+            return NO_ERROR;
         case 2000:
         {
             if (mARConfig.isSensorEnabled) {
@@ -2791,7 +2800,7 @@ status_t SurfaceFlinger::onTransact(
                 }
             }
             return NO_ERROR; 
-			
+            
             case 1000: // SHOW_CPU, NOT SUPPORTED ANYMORE
             case 1001: // SHOW_FPS, NOT SUPPORTED ANYMORE
                 return NO_ERROR;
@@ -3371,7 +3380,7 @@ int SurfaceFlinger::LayerVector::do_compare(const void* lhs,
 void SurfaceFlinger::saveARSettings()
 {
     ALOGI("Save AR setting: ");
-	int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT,  O_CREAT);
+    int fd = open(AR_CFG_FILE, O_WRONLY|O_CREAT,  O_CREAT);
     if (fd > 0)
     {
         mARConfig.version = AR_CONFIG_VERSION;
@@ -3386,26 +3395,26 @@ void SurfaceFlinger::saveARSettings()
 void SurfaceFlinger::loadARSettings()
 {
     ALOGI("Load AR setting: ");
-	int fd = open(AR_CFG_FILE, O_RDONLY);
-	if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION)
-	{
-		//load default config;
-		mARConfig.isMirrorEnabled = true;
-		mARConfig.isSensorEnabled = true;
-		mARConfig.shaderType = 0;
-		mARConfig.camFOV = 45;
-		mARConfig.zscale = 0.8f;
-		mARConfig.camRotation = 0;
-		mARConfig.camDistance = 0.13f;
-		mARConfig.sensorResetAcceleration = 20.0f;
+    int fd = open(AR_CFG_FILE, O_RDONLY);
+    if (read(fd, &mARConfig, sizeof(mARConfig)) != sizeof(mARConfig) || mARConfig.version != AR_CONFIG_VERSION)
+    {
+        //load default config;
+        mARConfig.isMirrorEnabled = true;
+        mARConfig.isSensorEnabled = true;
+        mARConfig.shaderType = 0;
+        mARConfig.camFOV = 45;
+        mARConfig.zscale = 0.8f;
+        mARConfig.camRotation = 0;
+        mARConfig.camDistance = 0.13f;
+        mARConfig.sensorResetAcceleration = 20.0f;
 
-		ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
-		        mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
-		        mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);
-	}
-	close(fd);
+        ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
+                mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
+                mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);
+    }
+    close(fd);
 
-	// init camera for sensor
+    // init camera for sensor
     mCamera.setPosition(0, 0, 0);
     mDefZ = -1 / tan(mARConfig.camFOV * 3.1415926 / 360);
 }
@@ -3413,21 +3422,21 @@ void SurfaceFlinger::loadARSettings()
 void SurfaceFlinger::updateARSettings(const Parcel& data)
 {
     ALOGI("Update AR setting: ");
-	mARConfig.isSensorEnabled = data.readInt32() != 0;
-	mARConfig.shaderType = data.readInt32();
-	mARConfig.camFOV = data.readInt32();
-	mARConfig.zscale = data.readFloat();
-	mARConfig.camRotation = data.readFloat();
-	mARConfig.camDistance = data.readFloat();
-	mARConfig.sensorResetAcceleration = data.readFloat();
-	mARConfig.isMirrorEnabled = data.readInt32() != 0;
-	ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
-	                mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
-	                mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);
-	
-	saveARSettings();
+    mARConfig.isSensorEnabled = data.readInt32() != 0;
+    mARConfig.shaderType = data.readInt32();
+    mARConfig.camFOV = data.readInt32();
+    mARConfig.zscale = data.readFloat();
+    mARConfig.camRotation = data.readFloat();
+    mARConfig.camDistance = data.readFloat();
+    mARConfig.sensorResetAcceleration = data.readFloat();
+    mARConfig.isMirrorEnabled = data.readInt32() != 0;
+    ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
+                    mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
+                    mARConfig.zscale, mARConfig.camRotation, mARConfig.camDistance, mARConfig.sensorResetAcceleration);
+    
+    saveARSettings();
 
-	mCamera.setPosition(0, 0, 0);
+    mCamera.setPosition(0, 0, 0);
     mDefZ = -1 / tan(mARConfig.camFOV * 3.1415926 / 360);
 }
 
@@ -3440,7 +3449,7 @@ void SurfaceFlinger::readARSettings(Parcel& data)
     data.writeFloat(mARConfig.zscale);
     data.writeFloat(mARConfig.camRotation);
     data.writeFloat(mARConfig.camDistance);
-    data.writeFloat(mARConfig.sensorResetAcceleration);	
+    data.writeFloat(mARConfig.sensorResetAcceleration);    
     data.writeInt32(mARConfig.isMirrorEnabled ? 1 : 0);
     ALOGI("isSensorEnabled=%d, shaderType=%d, camFOV=%d, zscale=%f, camRotation=%f, camDistance=%f, sensorResetAcceleration=%f",
                         mARConfig.isSensorEnabled, mARConfig.shaderType, mARConfig.camFOV,
