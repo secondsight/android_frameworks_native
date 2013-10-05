@@ -106,6 +106,7 @@ public:
     mutable float mInclination;
     mutable float mAzimuth;
     mutable int mFakeDir;
+    mutable bool mSBSEnabled; // passed from application
 
     static char const* getServiceName() {
         return "SurfaceFlinger";

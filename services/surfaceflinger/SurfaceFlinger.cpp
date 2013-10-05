@@ -108,6 +108,7 @@ SurfaceFlinger::SurfaceFlinger()
         mInclination(0),
         mAzimuth(0),
         mFakeDir(0),
+        mSBSEnabled(true),
         Thread(false),
         mTransactionFlags(0),
         mTransactionPending(false),
@@ -2714,9 +2715,11 @@ status_t SurfaceFlinger::onTransact(
     switch (code) {
         case TRANS_CODE_DISABLE_SBS:
             ALOGD("disable sbs.");
+            mSBSEnabled = false;
             return NO_ERROR;
         case TRANS_CODE_ENABLE_SBS:
             ALOGD("enable sbs.");
+            mSBSEnabled = true;
             return NO_ERROR;
         case 2000:
         {
@@ -2727,6 +2730,7 @@ status_t SurfaceFlinger::onTransact(
                 mAzimuth = 0;
                 mInclination = 0;
             }
+            reply->writeInt32(mARConfig.isMirrorEnabled ? 1 : 0);
             reply->writeInt32(mARConfig.camFOV);
             reply->writeFloat(mARConfig.zscale);
             reply->writeFloat(mARConfig.camRotation);
