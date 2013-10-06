@@ -158,7 +158,8 @@ bool Layer::isMirrorable(const sp<const DisplayDevice>& hw) const
     int orientation = hw->getOrientation();
     return orientation != DisplayState::eOrientationDefault
             && orientation != DisplayState::eOrientation180
-            && mMirrable;
+            && mMirrable && mFlinger->mARConfig.isMirrorEnabled
+            && mFlinger->mSBSEnabled;
 }
 
 Layer::~Layer() {
