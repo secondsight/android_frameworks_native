@@ -2831,7 +2831,9 @@ status_t SurfaceFlinger::onTransact(
             }
             case 1008:  // toggle use of hw composer
                 n = data.readInt32();
-                mDebugDisableHWC = n ? 1 : 0;
+//                mDebugDisableHWC = n ? 1 : 0;
+                // always disable hardware overlay
+                mDebugDisableHWC = 1;
                 invalidateHwcGeometry();
                 repaintEverything();
                 return NO_ERROR;
