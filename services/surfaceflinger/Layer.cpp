@@ -97,18 +97,11 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mName = name;
 
-    if (name == "com.dwtech.android.wallpaper3d.Wallpaper3dService"
-            //|| name.find("com.aetherar.launcher") != -1
-    ) {
-        mMirrable = false;
+    mMirrable = true;
+    if (name == "StatusBar") {
         mDistortable = false;
     } else {
-        mMirrable = true;
-        if (name == "StatusBar") {
-            mDistortable = false;
-        } else {
-            mDistortable = true;
-        }
+        mDistortable = true;
     }
 
     mDistortable &= mFlinger->mARConfig.shaderType != 0;
