@@ -97,6 +97,14 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mName = name;
 
+    if (name == "com.camerawallpaper.org"
+            //|| name.find("com.aetherar.launcher") != -1
+    ) {
+        mIsPositionFixed = true;
+    } else {
+        mIsPositionFixed = false;
+    }
+
     mMirrable = true;
     if (name == "StatusBar") {
         mDistortable = false;
@@ -106,7 +114,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mDistortable &= mFlinger->mARConfig.shaderType != 0;
 
-    ALOGI("layer name: %s, mMirrable = %d, mDistortable = %d", mName.string(), mMirrable, mDistortable);
+    ALOGI("layer name: %s, mIsPositionFixed = %d, mDistortable = %d", mName.string(), mIsPositionFixed, mDistortable);
 
     mCurrentState.active.w = w;
     mCurrentState.active.h = h;
@@ -713,10 +721,12 @@ void Layer::drawWithOpenGL(
         mFlinger->mCamera.perspective(mFlinger->mARConfig.camFOV, 1, 0.1f, 1000.f);
         glUniformMatrix4fv(locPrjMat, 1, false, mFlinger->mCamera.getProjectionMatrix());
 
-        // Camera rotation in degree
-        float camRot = mFlinger->mARConfig.camRotation * 3.1415926 / 180;
-        worldLeft.rotate(camRot, 1, 0, 0);
-        worldRight.rotate(-camRot, 1, 0, 0);
+        if (!mIsPositionFixed) {
+            // Camera rotation in degree
+            float camRot = mFlinger->mARConfig.camRotation * 3.1415926 / 180;
+            worldLeft.rotate(camRot, 1, 0, 0);
+            worldRight.rotate(-camRot, 1, 0, 0);
+        }
 
         // distance between two cameras, equivalent to translate plane on the opposite direction
         float camDis = mFlinger->mARConfig.camDistance;
@@ -731,8 +741,11 @@ void Layer::drawWithOpenGL(
         // check is we should apply distortion
         glUniform1i(locOR, mDistortable ? 1 : 0);
 
-        // anything mirrored is moving
-        glUniformMatrix4fv(locEyeMat, 1, false, mFlinger->mCamera.getViewMatrix());
+        if (mIsPositionFixed) {
+            glUniformMatrix4fv(locEyeMat, 1, false, identity.getData());
+        } else {
+            glUniformMatrix4fv(locEyeMat, 1, false, mFlinger->mCamera.getViewMatrix());
+        }
 
         // left
         glViewport(0, 0, w, h/2);
