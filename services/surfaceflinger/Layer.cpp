@@ -97,9 +97,7 @@ Layer::Layer(SurfaceFlinger* flinger, const sp<Client>& client,
 
     mName = name;
 
-    if (name == "com.camerawallpaper.org"
-            //|| name.find("com.aetherar.launcher") != -1
-    ) {
+    if (name == "com.dwtech.android.wallpaper3d.Wallpaper3dService") {
         mIsPositionFixed = true;
     } else {
         mIsPositionFixed = false;
