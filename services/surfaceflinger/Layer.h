@@ -322,9 +322,8 @@ protected:
     // constant
     sp<SurfaceFlinger> mFlinger;
 
-    // need to be mirrrored in landscape mode
-    // camera wallpaper is not mirrorable status bar is mirrorable but not distortable
     mutable bool mMirrable;
+    mutable bool mIsPositionFixed;
 
     // none mirrorable plus status bar
     mutable bool mDistortable;
