@@ -2731,6 +2731,7 @@ status_t SurfaceFlinger::onTransact(
                 mInclination = 0;
             }
             reply->writeInt32(mARConfig.isMirrorEnabled ? 1 : 0);
+            reply->writeInt32(mARConfig.isSensorEnabled ? 1 : 0);
             reply->writeInt32(mARConfig.camFOV);
             reply->writeFloat(mARConfig.zscale);
             reply->writeFloat(mARConfig.camRotation);
